@@ -1,0 +1,17 @@
+- name: Настраиваем линух
+  hosts: gitlab
+  become: true
+  roles:
+#    - certs_setup
+#    - update_upgrade
+#    - manage_users
+#    - disable_ipv6
+#    - ntp_setup
+    - zabbix-agent_setup
+#    - auditd_setup
+#    - fail2ban_setup
+#    - network_security
+#    - wazuh-agent_setup
+#    - clamav_wazuh_setup
+#    - iptables_setup
+#    - filebeat_setup

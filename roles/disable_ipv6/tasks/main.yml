@@ -1,0 +1,47 @@
+---
+- name: Ensure sysctl configurations are present for disabling IPv6
+  copy:
+    dest: /etc/sysctl.d/99-disable-ipv6.conf
+    content: |
+      net.ipv6.conf.all.disable_ipv6 = 1
+      net.ipv6.conf.default.disable_ipv6 = 1
+      net.ipv6.conf.lo.disable_ipv6 = 1
+  register: sysctl_file
+
+- name: Reload sysctl to apply changes
+  command: sysctl --system
+  register: sysctl_output
+  when: sysctl_file.changed
+
+- name: Debug sysctl output
+  debug:
+    var: sysctl_output.stdout
+  when: sysctl_output.stdout is defined
+
+- name: Verify IPv6 is disabled temporarily
+  shell: "ip -6 addr show | grep inet6 || echo 'IPv6 is disabled'"
+  register: ipv6_status
+  changed_when: false
+
+- name: Display IPv6 status
+  debug:
+    var: ipv6_status.stdout
+
+- name: Disable IPv6 permanently via GRUB
+  ansible.builtin.lineinfile:
+    path: /etc/default/grub
+    regexp: '^GRUB_CMDLINE_LINUX_DEFAULT="'
+    line: 'GRUB_CMDLINE_LINUX_DEFAULT="quiet splash ipv6.disable=1"'
+    backrefs: yes
+  register: grub_config
+
+- name: Update GRUB configuration
+  command: update-grub
+  when: grub_config.changed
+  register: grub_update
+  # Хост не перезагружается, изменения вступят в силу только после ребута
+
+- name: Debug GRUB update output
+  debug:
+    var: grub_update.stdout
+  when: grub_update.stdout is defined

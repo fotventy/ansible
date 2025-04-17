@@ -1,0 +1,35 @@
+---
+- name: Установить iptables-persistent
+  ansible.builtin.apt:
+    name:
+      - iptables-persistent
+      - netfilter-persistent
+    state: present
+  when: ansible_os_family == "Debian"
+
+- name: Установить iptables-services (для RedHat)
+  ansible.builtin.yum:
+    name: iptables-services
+    state: present
+  when: ansible_os_family == "RedHat"
+
+- name: Разрешить нужные порты в iptables
+  ansible.builtin.template:
+    src: rules.v4.j2
+    dest: /etc/iptables/rules.v4
+    owner: root
+    group: root
+    mode: '0644'
+  notify: Reload iptables
+
+- name: Включить автозапуск iptables
+  ansible.builtin.service:
+    name: netfilter-persistent
+    enabled: yes
+  when: ansible_os_family == "Debian"
+
+- name: Включить автозапуск iptables (для RedHat)
+  ansible.builtin.service:
+    name: iptables
+    enabled: yes
+  when: ansible_os_family == "RedHat"

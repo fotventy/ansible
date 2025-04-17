@@ -1,0 +1,10 @@
+---
+- name: Перезапустить ClamAV
+  systemd:
+    name: clamav-daemon
+    state: restarted
+
+- name: Перезапустить Wazuh Agent
+  systemd:
+    name: wazuh-agent
+    state: restarted

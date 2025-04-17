@@ -1,0 +1,41 @@
+---
+- hosts: all
+  become: yes
+  tasks:
+    - name: Check if the OS is Debian or Ubuntu
+      ansible.builtin.fail:
+        msg: "This role is only for Debian/Ubuntu hosts."
+      when: ansible_distribution not in ["Debian", "Ubuntu"]
+
+    - name: Stop Filebeat service
+      ansible.builtin.systemd:
+        name: filebeat
+        state: stopped
+      ignore_errors: yes  # Игнорировать ошибки, если служба уже остановлена
+
+    - name: Disable Filebeat service
+      ansible.builtin.systemd:
+        name: filebeat
+        enabled: no
+      ignore_errors: yes  # Игнорировать ошибки, если служба уже отключена
+
+    - name: Uninstall Filebeat package
+      ansible.builtin.apt:
+        name: filebeat
+        state: absent
+        purge: yes  # Удаляет конфигурационные файлы, установленные пакетом
+
+    - name: Remove Filebeat configuration directory
+      ansible.builtin.file:
+        path: /etc/filebeat
+        state: absent
+
+    - name: Remove Filebeat modules directory
+      ansible.builtin.file:
+        path: /etc/filebeat/modules.d
+        state: absent
+
+    - name: Remove temporary Filebeat package if it exists
+      ansible.builtin.file:
+        path: /tmp/filebeat.deb
+        state: absent

@@ -1,0 +1,58 @@
+filebeat.config.modules:
+  path: ${path.config}/modules.d/*.yml
+  reload.enabled: false
+
+setup.template.settings:
+  index.number_of_shards: 1
+  index.number_of_replicas: 0
+
+filebeat.inputs:
+- type: log
+  enabled: true
+  paths:
+    - /var/log/audit/audit.log
+  fields:
+    type: auditd
+  processors:
+    - add_host_metadata:
+        netinfo.enabled: true
+    - drop_event:
+        when:
+          or:
+            - equals:
+                auditd.type: PATH           # Удаляем записи PATH
+            - equals:
+                auditd.type: CWD            # Удаляем текущую директорию
+            - equals:
+                auditd.type: BPRM_FCAPS     # Удаляем пустые capabilities
+            - regexp:
+                auditd.exe: "/lib64/ld-linux-x86-64.so.2"  # Удаляем загрузчик
+            - and:
+                - equals:
+                    auditd.exe: "/usr/bin/curl"  # Удаляем healthcheck curl
+                - regexp:
+                    auditd.message: ".*--fail http://localhost:8080/.*"
+    - dissect:
+        tokenizer: "type=%{auditd.type} msg=audit(%{auditd.timestamp}:%{auditd.id}): %{auditd.message}"
+        field: message
+        target_prefix: ""
+        ignore_failure: true
+
+output.logstash:
+  hosts: ["192.168.21.15:5044"]
+  timeout: 30
+  compression_level: 6
+
+processors:
+  - drop_fields:
+      fields: ["ecs.version", "agent.ephemeral_id", "input.type"]
+
+logging:
+  level: info
+  to_files: true
+  files:
+    path: /var/log/filebeat
+    name: filebeat
+    keepfiles: 7
+    permissions: 0644
+    rotateeverybytes: 104857600

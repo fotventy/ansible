@@ -1,0 +1,45 @@
+---
+- name: Manage resolv.conf on all hosts
+  hosts: all
+  gather_facts: no
+  become: yes
+  tasks:
+    - name: Check if resolve.conf contains 77.88.8.8
+      shell: "grep -q '77.88.8.8' /etc/resolv.conf && echo present || echo absent"
+      register: resolve_check
+      ignore_errors: yes
+
+    - name: Remove 77.88.8.8 from resolve.conf if present
+      lineinfile:
+        path: /etc/resolv.conf
+        state: absent
+        regexp: "^nameserver 77\\.88\\.8\\.8$"
+      when: resolve_check.stdout == "present"
+
+    - name: Ensure only required nameservers are present in resolv.conf
+      copy:
+        dest: /etc/resolv.conf
+        content: |
+          nameserver 172.20.171.10
+          nameserver 62.113.39.25
+
+    - name: Verify contents of resolv.conf
+      command: "cat /etc/resolv.conf"
+      register: resolv_conf_content
+
+    - name: Debug resolv.conf content for verification
+      debug:
+        var: resolv_conf_content.stdout
+
+    - name: Record hosts with correct resolv.conf in a local file
+      lineinfile:
+        path: "./hosts_with_correct_resolv_conf.txt"
+        line: "{{ inventory_hostname }}"
+        create: yes
+      when: "'nameserver 172.20.171.10' in resolv_conf_content.stdout and 'nameserver 62.113.39.25' in resolv_conf_content.stdout"
+      delegate_to: localhost
+
+    - name: Restart Docker daemon
+      service:
+        name: docker
+        state: restarted

@@ -1,0 +1,34 @@
+---
+- name: Install certificates for Ubuntu/Debian
+  when: ansible_distribution in ['Ubuntu', 'Debian']
+  block:
+    - name: Create certificates destination directory (Ubuntu/Debian)
+      ansible.builtin.file:
+        path: "{{ certs_dest_dir }}"
+        state: directory
+        mode: "0755"
+
+    - name: Copy certificates to system (Ubuntu/Debian)
+      ansible.builtin.copy:
+        src: "{{ certs_source_dir }}/"
+        dest: "{{ certs_dest_dir }}/"
+        mode: "0644"
+      register: certs_copied
+
+    - name: Update CA certificates (Ubuntu/Debian)
+      ansible.builtin.command: update-ca-certificates
+      when: certs_copied.changed
+
+- name: Install certificates for RedHat
+  when: ansible_distribution == 'RedHat'
+  block:
+    - name: Copy certificates to system (RedHat)
+      ansible.builtin.copy:
+        src: "{{ certs_source_dir }}/"
+        dest: "/etc/pki/ca-trust/source/anchors/"
+        mode: "0644"
+      register: certs_copied
+
+    - name: Update CA certificates (RedHat)
+      ansible.builtin.command: update-ca-trust extract
+      when: certs_copied.changed

@@ -1,0 +1,15 @@
+# Файл конфигурации Zabbix Agent 2
+
+LogFile=/var/log/zabbix/zabbix_agent2.log
+LogFileSize=0
+PidFile=/var/run/zabbix/zabbix_agent2.pid
+Server=172.20.171.110,192.168.88.248
+ServerActive=172.20.171.110,192.168.88.248
+Hostname={{ zabbix_agent_hostname }}
+ListenPort=10050
+Include=/etc/zabbix/zabbix_agent2.d/*.conf
+PluginSocket=/run/zabbix/agent.plugin.sock
+ControlSocket=/run/zabbix/agent.sock
+Plugins.Log.MaxLinesPerSecond=100
+Include=/etc/zabbix/zabbix_agent2.d/plugins.d/*.conf
+ListenIP={{ ansible_default_ipv4.address }}

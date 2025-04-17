@@ -1,0 +1,23 @@
+- name: Настраиваем линух
+  hosts: report
+  become: true
+  vars_files:
+    - /etc/ansible/secret.yml
+  roles:
+#    - qemu-agent_setup
+#    - manage_users
+#    - certs_setup
+#    - disable_ipv6
+#    - ntp_setup
+    - zabbix-agent_setup
+    - auditd_setup
+    - filebeat_setup
+#    - fail2ban_setup
+#    - network_security
+#    - wazuh-agent_setup
+#    - clamav_wazuh_setup
+#    - lmd_setup
+#    - iptables_setup
+    - docker_setup
+    - update_upgrade
+

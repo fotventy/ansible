@@ -1,0 +1,47 @@
+---
+- name: Set timezone
+  timezone:
+    name: "{{ timezone }}"
+
+- name: Install chrony
+  package:
+    name: chrony
+    state: present
+
+- name: Configure chrony to use only custom NTP server
+  ansible.builtin.copy:
+    content: |
+      # Use only the specified NTP server
+      server {{ ntp_server }} iburst
+      # Basic chrony settings
+      driftfile /var/lib/chrony/chrony.drift
+      makestep 1.0 3
+      rtcsync
+      logdir /var/log/chrony
+      maxupdateskew 100.0
+      leapsectz right/UTC
+    dest: "{{ chrony_config_path }}"
+    mode: "0644"
+    backup: yes
+  notify: Restart chronyd
+
+- name: Ensure chrony is running and enabled
+  service:
+    name: chronyd
+    state: started
+    enabled: yes
+
+- name: Wait for chrony to start
+  pause:
+    seconds: 5
+
+- name: Check NTP server availability
+  command: ping -c 4 {{ ntp_server }}
+  register: ping_result
+  failed_when: ping_result.rc != 0
+  changed_when: false
+
+- name: Force time synchronization
+  command: chronyc -a makestep
+  register: sync_result
+  changed_when: "'200 OK' in sync_result.stdout"

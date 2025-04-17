@@ -1,0 +1,32 @@
+---
+- name: Устанавливаем ClamAV на Debian
+  apt:
+    name:
+      - clamav
+      - clamav-daemon
+    state: present
+    update_cache: no
+
+- name: Копируем вирусные базы ClamAV
+  copy:
+    src: /etc/ansible/files/clamav/
+    dest: /var/lib/clamav/
+    owner: clamav
+    group: clamav
+    mode: '0644'
+    force: yes
+
+- name: Обновляем вирусные базы
+  command: freshclam
+  ignore_errors: yes
+
+- name: Настраиваем Wazuh (добавляем ClamAV в логи)
+  lineinfile:
+    path: /var/ossec/etc/ossec.conf
+    insertafter: "</localfile>"
+    line: |
+      <localfile>
+        <log_format>syslog</log_format>
+        <location>/var/log/clamav.log</location>
+      </localfile>
+  notify: Перезапустить Wazuh Agent

@@ -1,0 +1,10 @@
+---
+- name: Перезапустить LMD
+  service:
+    name: maldet
+    state: restarted
+
+- name: Перезапустить Wazuh Agent
+  service:
+    name: wazuh-manager
+    state: restarted

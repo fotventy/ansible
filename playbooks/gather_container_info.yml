@@ -1,0 +1,33 @@
+---
+- name: Collect container information from all hosts
+  hosts: all
+  become: yes
+  
+  tasks:
+    - name: Check if Docker is installed
+      ansible.builtin.command: docker --version
+      register: docker_check
+      changed_when: false
+      failed_when: false
+
+    - name: Get list of container names
+      ansible.builtin.shell: 'docker ps -a --format "{{.Names}}"'
+      register: container_names
+      changed_when: false
+      when: docker_check.rc == 0
+
+    - name: Get detailed container info
+      ansible.builtin.shell: 'docker inspect {{ item }} --format "{{.Name}},{{.NetworkSettings.IPAddress}},{{range $key, $value := .NetworkSettings.Ports}}{{$key}}{{end}}"'
+      register: container_details
+      loop: "{{ container_names.stdout_lines | select('length') > 0 }}"
+      when: container_names.stdout_lines is defined and docker_check.rc == 0
+
+    - name: Create container inventory file
+      ansible.builtin.template:
+        src: container_inventory.j2
+        dest: /tmp/container_inventory.txt
+        mode: '0644'
+      vars:
+        containers: "{{ container_details.results | default([]) }}"
+      delegate_to: localhost
+      when: container_details.results is defined and docker_check.rc == 0

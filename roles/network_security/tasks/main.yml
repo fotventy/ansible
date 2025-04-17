@@ -1,0 +1,33 @@
+---
+- name: Enable TCP SYN Cookies
+  sysctl:
+    name: net.ipv4.tcp_syncookies
+    value: '1'
+    state: present
+    sysctl_set: true
+    reload: yes
+
+- name: Limit incoming TCP connections (Rate Limit)
+  sysctl:
+    name: net.ipv4.tcp_max_syn_backlog
+    value: '2048'
+    state: present
+    sysctl_set: true
+    reload: yes
+
+- name: Set rate limit for new connections
+  sysctl:
+    name: net.ipv4.tcp_synack_retries
+    value: '2'
+    state: present
+    sysctl_set: true
+    reload: yes
+
+- name: Restrict unprivileged ports start to 1024
+  sysctl:
+    name: net.ipv4.ip_unprivileged_port_start
+    value: '1024'
+    state: present
+    sysctl_set: true
+    reload: yes
+

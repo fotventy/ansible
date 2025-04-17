@@ -1,0 +1,8 @@
+playbooks/ssh-pub/
+update_info/
+backup/
+files/
+
+*.log
+*.tmp
+*.bak

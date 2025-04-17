@@ -1,0 +1,71 @@
+---
+- name: Install auditd (RHEL/CentOS)
+  block:
+    - name: Check if audit package is installed (RHEL)
+      command: rpm -q audit
+      register: audit_installed
+      ignore_errors: yes
+      changed_when: false
+
+    - name: Install audit package (RHEL)
+      command: yum install -y audit
+      when: audit_installed.rc != 0
+      notify: Restart auditd
+      
+    - name: Ensure auditd service is running
+      service:
+        name: auditd
+        enabled: yes
+        state: started
+  when: 
+    - ansible_distribution in ['RedHat', 'CentOS', 'OracleLinux', 'Fedora', 'Amazon']
+
+- name: Install auditd (Debian/Ubuntu)
+  block:
+    - name: Check if auditd package is installed (Debian)
+      command: dpkg -s auditd
+      register: auditd_installed
+      ignore_errors: yes
+      changed_when: false
+
+    - name: Install auditd package (Debian)
+      command: apt-get install -y auditd
+      when: auditd_installed.rc != 0
+      notify: Restart auditd
+      
+    - name: Ensure auditd service is running
+      service:
+        name: auditd
+        enabled: yes
+        state: started
+  when: 
+    - ansible_distribution in ['Debian', 'Ubuntu']
+
+- name: Configure auditd log rotation and size
+  template:
+    src: auditd.conf.j2
+    dest: /etc/audit/auditd.conf
+    owner: root
+    group: root
+    mode: '0644'
+  notify: Restart auditd
+
+- name: Ensure audit rules directory exists
+  file:
+    path: /etc/audit/rules.d
+    state: directory
+    mode: '0755'
+
+- name: Deploy audit rules
+  template:
+    src: "{{ item }}"
+    dest: "/etc/audit/rules.d/{{ item | basename | regex_replace('\\.j2$', '') }}"
+    owner: root
+    group: root
+    mode: '0644'
+  loop:
+    - critical-files.rules.j2
+    - execve.rules.j2
+    - sudo.rules.j2
+    - auditd.rules.j2
+  notify: Reload audit rules

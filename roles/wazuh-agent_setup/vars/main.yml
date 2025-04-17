@@ -1,0 +1,5 @@
+---
+wazuh_server: "192.168.21.190"
+wazuh_agent_config:
+  agent_name: "{{ inventory_hostname }}"
+  server_ip: "192.168.21.190"

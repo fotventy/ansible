@@ -1,0 +1,4 @@
+---
+auditd_num_logs: 10
+auditd_max_log_file: 50
+auditd_max_log_file_action: ROTATE

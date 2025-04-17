@@ -1,0 +1,21 @@
+---
+- name: Настраиваем Integration
+  hosts: "*lab*"
+  become: yes
+  vars_files:
+    - /etc/ansible/secret.yml
+  roles:
+    - qemu-agent_setup
+    - manage_users
+    - disable_ipv6
+    - ntp_setup
+    - zabbix-agent_setup
+    - auditd_setup
+    - wazuh-agent_setup
+    - clamav_wazuh_setup
+#    - lmd_setup
+#    - network_security
+#    - iptables_setup
+#    - postfix_setup
+#    - fail2ban_setup
+    - update_upgrade

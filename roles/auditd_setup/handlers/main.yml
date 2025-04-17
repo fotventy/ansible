@@ -1,0 +1,8 @@
+---
+- name: Restart auditd
+  service:
+    name: auditd
+    state: restarted
+
+- name: Reload audit rules
+  command: auditctl -R /etc/audit/rules.d/audit.rules

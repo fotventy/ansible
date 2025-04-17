@@ -1,0 +1,3 @@
+zabbix_server: "172.20.171.110"
+zabbix_api_url: "http://172.20.171.110/api_jsonrpc.php"
+zabbix_api_token: "f5dbe54974c25981a8770a1c7f48eb54adcfe573121a2e080106e78d6aedef07"

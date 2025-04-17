@@ -1,0 +1,6 @@
+{% for item in containers %}
+{% if item.stdout is defined and item.stdout | length > 0 %}
+{% set fields = item.stdout.split(',') %}
+{{ hostvars[inventory_hostname]['inventory_hostname'] }},{{ hostvars[inventory_hostname]['ansible_host'] }},{{ fields[0] | trim('/') }},{{ fields[1] | default('N/A') }},{{ fields[2] | regex_replace('/tcp', '') | default('N/A') }}
+{% endif %}
+{% endfor %}

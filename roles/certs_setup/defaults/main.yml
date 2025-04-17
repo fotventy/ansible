@@ -1,0 +1,6 @@
+---
+# Путь к папке с сертификатами в проекте Ansible
+certs_source_dir: "/etc/ansible/files/certs"
+
+# Целевой путь для сертификатов в системе
+certs_dest_dir: "/usr/local/share/ca-certificates"

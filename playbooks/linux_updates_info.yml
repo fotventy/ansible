@@ -1,0 +1,86 @@
+---
+- name: Собрать информацию об обновлениях с серверов и скопировать в итоговый файл
+  hosts: all
+  gather_facts: yes
+  tasks:
+    - name: Получить список доступных обновлений (для систем с apt)
+      command: "apt list --upgradable"
+      register: upgradable_packages_apt
+      changed_when: false
+      when: ansible_facts['os_family'] == 'Debian'
+
+    - name: Получить список доступных обновлений (для систем с yum)
+      command: "yum list updates"
+      register: upgradable_packages_yum
+      changed_when: false
+      when: ansible_facts['os_family'] == 'RedHat'
+
+    - name: Получить дату последнего обновления (для систем с apt)
+      command: "stat -c %y /var/cache/apt/pkgcache.bin"
+      register: last_update_apt
+      changed_when: false
+      when: ansible_facts['os_family'] == 'Debian'
+
+    - name: Получить дату последнего обновления (для систем с yum)
+      command: "yum history info last | awk '/^Begin time/ {print substr($0, index($0,$3))}'"
+      register: last_update_yum
+      changed_when: false
+      when: ansible_facts['os_family'] == 'RedHat'
+
+    - name: Создать временный файл с информацией об обновлениях
+      copy:
+        content: |
+          {{ "  " }}# Информация о последнем обновлении
+          {{ "  " }}{% if ansible_facts['os_family'] == 'Debian' %}
+          {{ "  " }}Дата последнего обновления (APT): {{ last_update_apt.stdout }}
+          {{ "  " }}# Список обновлений для apt
+          {{ "  " }}{{ upgradable_packages_apt.stdout }}
+          {{ "  " }}{% elif ansible_facts['os_family'] == 'RedHat' %}
+          {{ "  " }}Дата последнего обновления (YUM): {{ last_update_yum.stdout }}
+          {{ "  " }}# Список обновлений для yum
+          {{ "  " }}{{ upgradable_packages_yum.stdout }}
+          {{ "  " }}{% endif %}
+        dest: "/tmp/update_info_{{ ansible_date_time.date }}_{{ inventory_hostname }}.txt"
+
+    - name: Скопировать временный файл на контроллер
+      fetch:
+        src: "/tmp/update_info_{{ ansible_date_time.date }}_{{ inventory_hostname }}.txt"
+        dest: "/tmp/"
+        flat: yes
+
+    - name: Создать итоговый файл с информацией на контроллере
+      file:
+        path: "/etc/ansible/update_info_{{ ansible_date_time.date }}.txt"
+        state: touch
+        mode: '0644'
+      delegate_to: localhost
+
+    - name: Добавить информацию о сервере в итоговый файл
+      blockinfile:
+        path: "/etc/ansible/update_info_{{ ansible_date_time.date }}.txt"
+        block: |
+          {{ "  " }}
+          # Информация для сервера {{ inventory_hostname }}
+          {{ inventory_hostname }}
+          ------------------------
+          {{ lookup('file', '/tmp/update_info_' + ansible_date_time.date + '_' + inventory_hostname + '.txt') }}
+        marker: "# ANSIBLE MANAGED BLOCK {{ inventory_hostname }} - {{ ansible_date_time.iso8601 }}"
+      delegate_to: localhost
+
+    - name: Удалить маркеры с итогового файла
+      lineinfile:
+        path: "/etc/ansible/update_info_{{ ansible_date_time.date }}.txt"
+        regexp: '^# ANSIBLE MANAGED BLOCK.*'
+        state: absent
+      delegate_to: localhost
+
+    - name: Удалить временный файл с локального сервера
+      file:
+        path: "/tmp/update_info_*"
+        state: absent
+      delegate_to: localhost
+
+    - name: Удалить временный файл с удаленного сервера
+      file:
+        path: "/tmp/update_info_{{ ansible_date_time.date }}_{{ inventory_hostname }}.txt"
+        state: absent

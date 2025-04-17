@@ -1,0 +1,19 @@
+- name: Настраиваем линух
+  hosts: jira-service-desk
+  become: true
+  vars_files:
+    - /etc/ansible/secret.yml
+  roles:
+    - update_upgrade
+    - qemu-agent_setup
+    - manage_users
+    - disable_ipv6
+#    - ntp_setup
+    - zabbix-agent_setup
+    - auditd_setup
+#    - fail2ban_setup
+#    - network_security
+    - wazuh-agent_setup
+    - clamav_wazuh_setup
+#    - lmd_setup
+#    - iptables_setup

@@ -1,0 +1,38 @@
+---
+sudo_group: "{{ 'sudo' if ansible_facts['distribution'] == 'Debian' else 'wheel' }}"
+
+allowed_users: >-
+  {{
+    ['skoptilin', 'svasyuk', 'sbotnar'] +
+    (['abc', 'robertad', 'renato', 'erozhko', 'agolovchenko', 'aporoshin', 'varnold'] if inventory_hostname in groups['elive'] else []) +
+    (['pauloc', 'erozhko', 'heinv', 'abc', 'milton', 'imaurin', 'norlov', 'vsokolov', 'aporoshin'] if inventory_hostname in groups['sdsevo'] else []) +
+    (['imaurin', 'norlov', 'vsokolov', 'varnold'] if inventory_hostname in groups['arni'] else []) +
+    (['aporoshin'] if inventory_hostname in groups['xrm'] else []) +
+    (['varnold', 'vsokolov'] if inventory_hostname in groups['cdn'] else [])
+  | unique
+  }}
+
+sudo_users:
+  - {name: 'skoptilin', ssh_key: '/etc/ansible/playbooks/ssh-pub/skoptilin.pub'}
+  - {name: 'svasyuk', ssh_key: '/etc/ansible/playbooks/ssh-pub/svasyuk.pub'}
+  - {name: 'sbotnar', ssh_key: '/etc/ansible/playbooks/ssh-pub/sbotnar.pub'}
+  - {name: 'varnold', ssh_key: '/etc/ansible/playbooks/ssh-pub/varnold.pub'}
+  - {name: 'imaurin', ssh_key: '/etc/ansible/playbooks/ssh-pub/imaurin.pub'}
+  - {name: 'norlov', ssh_key: '/etc/ansible/playbooks/ssh-pub/norlov.pub'}
+  - {name: 'vsokolov', ssh_key: '/etc/ansible/playbooks/ssh-pub/vsokolov.pub'}
+  - {name: 'aporoshin', ssh_key: '/etc/ansible/playbooks/ssh-pub/aporoshin.pub'}
+  - {name: 'erozhko', ssh_key: '/etc/ansible/playbooks/ssh-pub/erozhko.pub'}
+  - {name: 'agolovchenko', ssh_key: '/etc/ansible/playbooks/ssh-pub/agolovchenko.pub'}
+
+docker_users:
+  - {name: 'robertad', ssh_key: '/etc/ansible/playbooks/ssh-pub/robertad.pub'}
+  - {name: 'renato', ssh_key: '/etc/ansible/playbooks/ssh-pub/renato.pub'}
+  - {name: 'milton', ssh_key: '/etc/ansible/playbooks/ssh-pub/milton.pub'}
+  - {name: 'abc', ssh_key: '/etc/ansible/playbooks/ssh-pub/abc.pub'}
+  - {name: 'heinv', ssh_key: '/etc/ansible/playbooks/ssh-pub/heinv.pub'}
+  - {name: 'pauloc', ssh_key: '/etc/ansible/playbooks/ssh-pub/pauloc.pub'}
+
+users: >-
+  {{
+    (sudo_users + docker_users) | selectattr('name', 'in', allowed_users) | list
+  }}

@@ -1,0 +1,4 @@
+---
+clamav_quarantine_dir: "/var/quarantine"
+clamav_scan_path: "/home/"
+wazuh_log_path: "/var/log/clamav.log"

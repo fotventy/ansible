@@ -1,0 +1,131 @@
+---
+- name: Gather facts
+  ansible.builtin.setup:
+
+- name: Show host information
+  debug:
+    msg:
+      - "Distr: {{ ansible_facts['distribution'] }}"
+      - "Hostname: {{ ansible_facts['hostname'] }}"
+      - "IP Address: {{ ansible_facts['default_ipv4']['address'] }}"
+      - "Gateway: {{ ansible_facts['default_ipv4']['gateway'] }}"
+
+- name: Debug allowed users
+  debug:
+    msg: "Allowed users on {{ inventory_hostname }}: {{ allowed_users }}"
+
+- name: Get all existing users
+  getent:
+    database: passwd
+
+- name: Debug existing users
+  debug:
+    msg: "Existing users: {{ getent_passwd.keys() | list }}"
+
+- name: Define managed users
+  set_fact:
+    managed_users: "{{ (sudo_users | map(attribute='name') | list + docker_users | map(attribute='name') | list) | unique }}"
+
+- name: Debug managed users
+  debug:
+    msg: "Managed users: {{ managed_users }}"
+
+- name: Remove unauthorized users
+  user:
+    name: "{{ item }}"
+    state: absent
+    remove: yes
+    force: yes
+  loop: "{{ managed_users | difference(allowed_users) }}"
+  when: item in getent_passwd.keys()
+  register: removed_users
+
+- name: Debug removed users
+  debug:
+    msg: "Removed users: {{ removed_users.results | default([]) | selectattr('changed', 'equalto', true) | map(attribute='item') | list }}"
+
+- name: Ensure home directories of removed users are deleted
+  file:
+    path: "/home/{{ item }}"
+    state: absent
+  loop: "{{ removed_users.results | default([]) | selectattr('changed', 'equalto', true) | map(attribute='item') | list }}"
+
+- name: Ensure user exists
+  user:
+    name: "{{ item.name }}"
+    state: present
+    shell: /bin/bash
+    create_home: yes
+    home: "/home/{{ item.name }}"
+  loop: "{{ users }}"
+
+- name: Ensure wheel group exists on RHEL systems
+  group:
+    name: wheel
+    state: present
+  when: ansible_facts['distribution'] in ['CentOS', 'RedHat', 'OracleLinux', 'Amazon']
+  become: yes
+
+- name: Ensure docker group exists
+  group:
+    name: docker
+    state: present
+    system: yes
+  become: yes
+
+- name: Add sudo users to sudo/wheel group
+  user:
+    name: "{{ item.name }}"
+    groups: "{{ 'wheel' if ansible_facts['distribution'] in ['CentOS', 'RedHat', 'OracleLinux', 'Amazon'] else 'sudo' }}"
+    append: yes
+  loop: "{{ sudo_users | selectattr('name', 'in', allowed_users) }}"
+
+- name: Add docker users to docker group
+  user:
+    name: "{{ item.name }}"
+    groups: docker
+    append: yes
+  loop: "{{ docker_users | selectattr('name', 'in', allowed_users) }}"
+
+- name: Allow sudo access without password for sudo users
+  lineinfile:
+    path: /etc/sudoers.d/{{ item.name }}
+    state: present
+    create: yes
+    line: "{{ item.name }} ALL=(ALL) NOPASSWD:ALL"
+    mode: '0440'
+  loop: "{{ sudo_users | selectattr('name', 'in', allowed_users) }}"
+
+- name: Remove sudo access for docker users
+  file:
+    path: "/etc/sudoers.d/{{ item.name }}"
+    state: absent
+  loop: "{{ docker_users | selectattr('name', 'in', allowed_users) }}"
+
+- name: Create .ssh directory for the user
+  file:
+    path: "/home/{{ item.name }}/.ssh"
+    state: directory
+    mode: '0700'
+    owner: "{{ item.name }}"
+    group: "{{ item.name }}"
+  loop: "{{ users }}"
+
+- name: Copy public keys for the users
+  copy:
+    src: "{{ item.ssh_key }}"
+    dest: "/home/{{ item.name }}/.ssh/authorized_keys"
+    mode: '0600'
+    owner: "{{ item.name }}"
+    group: "{{ item.name }}"
+  loop: "{{ users }}"
+
+- name: Configure SSH to allow password and key authentication
+  lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: "^#?{{ item.option }}"
+    line: "{{ item.option }} {{ item.value }}"
+  loop:
+    - { option: "PasswordAuthentication", value: "no" }
+    - { option: "PubkeyAuthentication", value: "yes" }
+  notify: restart ssh

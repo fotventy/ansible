@@ -1,0 +1,10 @@
+---
+- name: Example playbook using dynamic inventory from Proxmox
+  hosts: all  # Имя группы, которую вы будете использовать
+  gather_facts: yes
+  vars_files:
+    - /erc/ansible/secret.yml
+  tasks:
+    - name: Print VM info
+      debug:
+        msg: "VM name: {{ inventory_hostname }}"

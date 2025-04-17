@@ -1,0 +1,51 @@
+---
+- name: Ensure SELinux packages are installed (Debian-based)
+  package:
+    name:
+      - selinux-basics
+      - selinux-policy-default
+      - auditd
+    state: present
+  when: ansible_os_family == "Debian"
+
+- name: Ensure SELinux packages are installed (RHEL-based)
+  package:
+    name:
+      - selinux-policy
+      - selinux-policy-targeted
+    state: present
+  when: ansible_os_family == "RedHat"
+
+- name: Ensure SELinux config file exists
+  copy:
+    dest: /etc/selinux/config
+    content: |
+      SELINUX=enforcing
+      SELINUXTYPE=targeted
+  notify: Reboot Server
+
+- name: Enable SELinux (if disabled at kernel level)
+  command: sed -i 's/^#\(SELINUX=.*\)/\1/' /etc/selinux/config
+  when: ansible_os_family == "RedHat" or ansible_os_family == "Debian"
+
+- name: Set SELinux to enforcing mode in config
+  command: sed -i 's/^SELINUX=.*$/SELINUX=enforcing/' /etc/selinux/config
+  when: ansible_os_family == "RedHat" or ansible_os_family == "Debian"
+
+- name: Ensure SELinux is enabled in GRUB (for kernel-level activation)
+  lineinfile:
+    path: /etc/default/grub
+    regexp: '^GRUB_CMDLINE_LINUX'
+    line: 'GRUB_CMDLINE_LINUX="selinux=1 security=selinux"'
+  notify:
+    - Update GRUB
+
+- name: Reboot Server
+  reboot:
+    msg: "Rebooting to activate SELinux at kernel level."
+    reboot_timeout: 600
+  when: ansible_os_family == "RedHat" or ansible_os_family == "Debian"
+
+- name: Set SELinux to enforcing mode
+  command: setenforce 1
+  when: ansible_os_family == "RedHat" or ansible_os_family == "Debian"

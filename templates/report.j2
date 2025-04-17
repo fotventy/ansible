@@ -1,0 +1,7 @@
+host,host_ip,container_name,container_ip,container_port,host_port
+{% for host in ansible_play_hosts %}
+  {% set hostvars = hostvars[host] %}
+  {% for item in hostvars.host_containers %}
+{{ item.host }},{{ item.host_ip }},{{ item.container_name }},{{ item.container_ip }},{{ item.container_port }},{{ item.host_port }}
+  {% endfor %}
+{% endfor %}

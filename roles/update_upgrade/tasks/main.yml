@@ -1,0 +1,40 @@
+---
+- name: Update and upgrade packages on Ubuntu
+  apt:
+    update_cache: yes
+    upgrade: dist
+  when: ansible_distribution == "Ubuntu"
+  register: apt_update
+
+- name: Update and upgrade packages on Debian
+  apt:
+    update_cache: yes
+    upgrade: dist
+  when: ansible_distribution == "Debian"
+  register: apt_update
+
+- name: Update and upgrade packages on CentOS
+  yum:
+    name: "*"
+    state: latest
+  when: ansible_distribution == "CentOS"
+  register: yum_update
+
+- name: Update and upgrade packages on RHEL
+  yum:
+    name: "*"
+    state: latest
+  when: ansible_distribution == "RedHat"
+  register: yum_update
+
+- name: Reboot if needed (Ubuntu/Debian)
+  reboot:
+  when: 
+    - ansible_distribution in ["Ubuntu", "Debian"]
+    - apt_update.changed
+
+- name: Reboot if needed (CentOS/RHEL)
+  reboot:
+  when: 
+    - ansible_distribution in ["CentOS", "RedHat"]
+    - yum_update.changed

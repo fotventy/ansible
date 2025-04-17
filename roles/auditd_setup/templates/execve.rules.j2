@@ -1,0 +1,10 @@
+-a always,exit -F arch=b64 -S execve -F dir=/tmp -k exec_tmp
+-a always,exit -F arch=b64 -S execve -F dir=/var/tmp -k exec_vartmp
+-a always,exit -F arch=b64 -S execve -F dir=/home -k exec_home
+-a always,exit -F arch=b64 -S execve -F path=/usr/bin/curl -k exec_curl
+-a always,exit -F arch=b64 -S execve -F path=/usr/bin/wget -k exec_wget
+-a always,exit -F arch=b64 -S execve -F path=/usr/bin/nc -k exec_nc
+-a always,exit -F arch=b64 -S execve -F path=/usr/bin/python3 -k exec_python
+-a always,exit -F arch=b64 -S execve -F path=/usr/bin/bash -k exec_bash
+-a never,exit -F exe=/usr/sbin/cron
+-a never,exit -F exe=/usr/sbin/anacron

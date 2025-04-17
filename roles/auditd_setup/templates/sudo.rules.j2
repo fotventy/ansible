@@ -1,0 +1,5 @@
+# Мониторинг изменений в логе sudo
+-w /var/log/sudo.log -p wa -k sudo_activity
+# Мониторинг выполнения команды sudo
+-a always,exit -F arch=b64 -S execve -F path=/usr/bin/sudo -k sudo_exec
+-a always,exit -F arch=b32 -S execve -F path=/usr/bin/sudo -k sudo_exec

@@ -1,0 +1,42 @@
+---
+- name: Включаем репозиторий EPEL для RHEL
+  dnf:
+    name: epel-release
+    state: present
+
+- name: Устанавливаем ClamAV для RHEL
+  dnf:
+    name:
+      - clamav
+      - clamav-update
+      - clamav-scanner
+    state: present
+    update_cache: yes
+
+- name: Включаем службу обновления баз ClamAV
+  systemd:
+    name: clamav-freshclam
+    enabled: yes
+    state: started
+
+- name: Открываем порты для Wazuh
+  firewalld:
+    port: 1514/tcp
+    permanent: yes
+    state: enabled
+
+- name: Настраиваем Wazuh (добавляем ClamAV в логи)
+  lineinfile:
+    path: /var/ossec/etc/ossec.conf
+    insertafter: "</localfile>"
+    line: |
+      <localfile>
+        <log_format>syslog</log_format>
+        <location>/var/log/clamav.log</location>
+      </localfile>
+  notify: Перезапустить Wazuh Agent
+
+- name: Перезапуск Wazuh Agent
+  service:
+    name: wazuh-agent
+    state: restarted

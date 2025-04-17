@@ -1,0 +1,4 @@
+# Определение переменных
+ntp_server: "172.20.181.20"
+timezone: "Europe/Moscow"
+chrony_config_path: "/etc/chrony/chrony.conf"

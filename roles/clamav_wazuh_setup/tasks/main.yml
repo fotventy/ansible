@@ -1,0 +1,36 @@
+---
+- name: Проверяем дистрибутив и вызываем нужные задачи
+  ansible.builtin.include_tasks: "install_{{ ansible_os_family | lower }}.yml"
+
+- name: Копируем конфиг clamd.conf
+  template:
+    src: clamd.conf.j2
+    dest: /etc/clamav/clamd.conf
+  notify: Перезапустить ClamAV
+
+- name: Запускаем ClamAV
+  systemd:
+    name: clamav-daemon
+    state: started
+    enabled: yes
+
+- name: Проверяем установлен ли cron и устанавливаем его если нет
+  package:
+    name: cron
+    state: present
+  when: ansible_distribution in ['Debian', 'Ubuntu', 'CentOS', 'RedHat']
+
+- name: Настройка cron задачи для ночной проверки
+  cron:
+    name: "ClamAV system scan"
+    minute: "0"
+    hour: "3"
+    job: "/usr/bin/clamscan -r / --move=/var/lib/clamav/quarantine --log=/var/log/clamav/scan.log"
+    state: present
+
+- name: Создаем директорию для карантина
+  file:
+    path: /var/lib/clamav/quarantine
+    state: directory
+    mode: '0700'
+  notify: Перезапустить ClamAV

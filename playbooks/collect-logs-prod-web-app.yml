@@ -1,0 +1,55 @@
+---
+- name: Collect logs from web applications
+  hosts: all
+  become: yes
+  vars_files:
+    - /var/lib/awx/projects/secure_vars.yml
+
+  tasks:
+    - name: Get the hostname of the host
+      command: hostname
+      register: host_name
+
+    - name: Run log collection script
+      command: /home/abc/collect-daily-logs.sh
+      register: log_collection
+      ignore_errors: yes
+
+    - name: Show log collection result
+      debug:
+        msg: "{{ log_collection.stdout_lines }}"
+      when: log_collection.rc == 0
+
+    - name: Check if log file exists
+      stat:
+        path: "/home/abc/logs_{{ host_name.stdout }}_{{ current_date }}.tar.gz"
+      register: log_file
+
+    - name: Show log file check result
+      debug:
+        msg: "Log file exists: {{ log_file.stat.exists }} for host: {{ host_name.stdout }}"
+
+    - name: Copy logs to central server
+      command: >
+        sshpass -p '{{ totalvideo_pwd }}' scp -o StrictHostKeyChecking=no
+        /home/abc/logs_{{ host_name.stdout }}_{{ current_date }}.tar.gz
+        root@192.168.20.102:/var/www/html/nextcloud/data/admin/files/Other/Logs_PROD_WEB_APP/
+      register: copy_result
+      ignore_errors: yes
+
+- name: Run tasks directly on a specified host
+  hosts: localhost
+  tasks:
+    - name: Set correct permissions for the uploaded logs
+      command: >
+        sshpass -p '{{ totalvideo_pwd }}' ssh -o StrictHostKeyChecking=no root@192.168.20.102
+        'sudo chown -R www-data:www-data /var/www/html/nextcloud/data/admin/files/Other/Logs_PROD_WEB_APP/'
+      ignore_errors: yes
+
+    - name: Rescan Nextcloud files to include the new logs
+      command: >
+        sshpass -p '{{ totalvideo_pwd }}' ssh -o StrictHostKeyChecking=no root@192.168.20.102
+        'sudo -u www-data php /var/www/html/nextcloud/occ files:scan --path="admin/files/Other/Logs_PROD_WEB_APP/"'
+      ignore_errors: yes
+
+

@@ -1,0 +1,6 @@
+---
+zabbix_server:
+  - "172.20.171.110"
+  - "192.168.88.248"
+
+zabbix_agent_hostname: "{{ inventory_hostname }}"  # Имя хоста для агента

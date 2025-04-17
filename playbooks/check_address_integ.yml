@@ -1,0 +1,32 @@
+---
+- name: Search for docker-compose.yml files and replace specific IP address
+  hosts: all
+  gather_facts: no
+  become: yes
+  tasks:
+    - name: Find all docker-compose.yml files
+      find:
+        paths: "/"
+        patterns: "docker-compose.yml"
+        recurse: yes
+      register: docker_compose_files
+
+    - name: Debug Show found docker-compose.yml files
+      debug:
+        var: docker_compose_files.files
+
+    - name: Replace IP address 172.20.171.10 with 172.20.171.11 in docker-compose.yml files
+      replace:
+        path: "{{ item.path }}"
+        regexp: '\b172\.20\.171\.10\b'
+        replace: '172.20.171.11'
+      with_items: "{{ docker_compose_files.files }}"
+      when: docker_compose_files.matched > 0
+      notify:
+        - Restart Docker service
+
+  handlers:
+    - name: Restart Docker service
+      service:
+        name: docker
+        state: restarted

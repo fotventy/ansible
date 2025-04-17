@@ -1,0 +1,141 @@
+---
+- name: Add Zabbix repository key (Debian/Ubuntu)
+  ansible.builtin.apt_key:
+    url: https://repo.zabbix.com/zabbix-official-repo.key
+    state: present
+  when: ansible_facts['distribution'] in ['Debian', 'Ubuntu']
+
+- name: Configure Zabbix repository (Ubuntu)
+  ansible.builtin.apt_repository:
+    repo: "deb https://repo.zabbix.com/zabbix/6.4/ubuntu {{ ansible_distribution_release }} main"
+    state: present
+    filename: zabbix.list
+  when: ansible_facts['distribution'] == 'Ubuntu'
+
+- name: Configure Zabbix repository (Debian)
+  ansible.builtin.apt_repository:
+    repo: "deb https://repo.zabbix.com/zabbix/6.4/debian {{ ansible_distribution_release }} main"
+    state: present
+    filename: zabbix.list
+  when: ansible_facts['distribution'] == 'Debian'
+
+- name: Configure Zabbix repository (RHEL)
+  ansible.builtin.yum_repository:
+    name: zabbix
+    description: Zabbix Official Repository
+    baseurl: https://repo.zabbix.com/zabbix/6.4/rhel/{{ ansible_distribution_major_version }}/$basearch/
+    gpgkey: https://repo.zabbix.com/zabbix-official-repo.key
+    gpgcheck: yes
+    enabled: yes
+  when: ansible_facts['os_family'] == 'RedHat'
+
+- name: Install Zabbix agent2 (Debian/Ubuntu)
+  ansible.builtin.apt:
+    name: zabbix-agent2
+    state: present
+    update_cache: yes
+    lock_timeout: 300
+  when: ansible_facts['distribution'] in ['Debian', 'Ubuntu']
+
+- name: Install Zabbix agent2 (RHEL)
+  ansible.builtin.yum:
+    name: zabbix-agent2
+    state: present
+  when: ansible_facts['os_family'] == 'RedHat'
+
+- name: Check config file existence
+  ansible.builtin.stat:
+    path: /etc/zabbix/zabbix_agent2.conf
+  register: zabbix_conf
+
+- name: Create default config template
+  ansible.builtin.template:
+    src: zabbix_agent2.conf.j2
+    dest: /etc/zabbix/zabbix_agent2.conf
+    mode: '0644'
+  when: not zabbix_conf.stat.exists
+
+- name: Configure Zabbix agent parameters
+  ansible.builtin.lineinfile:
+    path: /etc/zabbix/zabbix_agent2.conf
+    regexp: '^{{ item.key }}\s*='
+    line: '{{ item.key }}={{ item.value }}'
+    state: present
+    backrefs: yes
+  loop:
+    - { key: 'Server', value: '172.20.171.110,192.168.88.248' }
+    - { key: 'ServerActive', value: '172.20.171.110,192.168.88.248' }
+    - { key: 'Hostname', value: '{{ zabbix_agent_hostname }}' }
+    - { key: 'ListenIP', value: '{{ ansible_default_ipv4.address }}' }
+  notify: restart zabbix-agent2
+
+- name: Enable and start Zabbix agent service
+  ansible.builtin.systemd:
+    name: zabbix-agent2
+    state: restarted
+    enabled: yes
+    daemon_reload: yes
+
+- name: Check if host exists on Zabbix server
+  uri:
+    url: "{{ zabbix_api_url }}"
+    method: POST
+    headers:
+      Content-Type: "application/json"
+    body: |
+      {
+        "jsonrpc": "2.0",
+        "method": "host.get",
+        "params": {
+          "filter": {
+            "host": "{{ ansible_host }}"
+          }
+        },
+        "auth": "{{ zabbix_api_token }}",
+        "id": 1
+      }
+    body_format: json
+    return_content: yes
+  delegate_to: localhost
+  register: zabbix_host_check
+
+- name: Create host if it does not exist
+  block:
+    - uri:
+        url: "{{ zabbix_api_url }}"
+        method: POST
+        headers:
+          Content-Type: "application/json"
+        body: |
+          {
+            "jsonrpc": "2.0",
+            "method": "host.create",
+            "params": {
+              "host": "{{ inventory_hostname }}",
+              "groups": [
+                {
+                  "groupid": "2"  # Linux servers group ID
+                }
+              ],
+              "templates": [
+                {
+                  "templateid": "10001"  # Linux by Zabbix agent template ID
+                }
+              ],
+              "interfaces": [
+                {
+                  "type": 1,
+                  "main": 1,
+                  "useip": 1,
+                  "ip": "{{ ansible_host }}",
+                  "dns": "",
+                  "port": "10050"
+                }
+              ]
+            },
+            "auth": "{{ zabbix_api_token }}",
+            "id": 1
+          }
+        body_format: json
+  when: zabbix_host_check.json.result | length == 0
+  delegate_to: localhost

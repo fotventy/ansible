@@ -1,0 +1,6 @@
+---
+filebeat_version: 8.17.3
+gitlab_project_id: 53
+gitlab_private_token: glpat-aAxH_syokyDsP4RvMMAi
+gitlab_registry_url: "https://gitlab.totalvideo.ru/api/v4/projects/{{ gitlab_project_id }}/packages/generic"
+logstash_host: "192.168.21.15:5044"

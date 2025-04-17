@@ -1,0 +1,65 @@
+---
+- name: Устанавливаем зависимости для lmd
+  apt:
+    name:
+      - curl
+      - wget
+      - unzip
+      - perl
+      - libgd-gd2-perl
+    state: present
+    update_cache: yes
+
+- name: Скачиваем Linux Malware Detect (LMD)
+  get_url:
+    url: https://www.rfxn.com/downloads/maldetect-current.tar.gz
+    dest: /tmp/maldetect.tar.gz
+
+- name: Распаковываем LMD
+  unarchive:
+    src: /tmp/maldetect.tar.gz
+    dest: /usr/local
+    remote_src: yes
+
+- name: Find the LMD directory
+  stat:
+    path: /usr/local/maldetect-1.6.5
+  register: maldetect_dir
+
+- name: Установка LMD
+  command: "{{ maldetect_dir.stat.path }}/install.sh"
+  when: maldetect_dir.stat.exists
+
+- name: Настраиваем LMD
+  template:
+    src: maldetect.conf.j2  # Используем шаблон конфигурации
+    dest: /etc/maldetect.conf
+    owner: root
+    group: root
+    mode: '0644'
+  notify: Перезапустить LMD
+
+- name: Добавляем LMD в логи Wazuh
+  lineinfile:
+    path: /var/ossec/etc/ossec.conf
+    insertafter: "</localfile>"
+    line: |
+      <localfile>
+        <log_format>syslog</log_format>
+        <location>/var/log/maldetect.log</location>
+      </localfile>
+  notify: Перезапустить Wazuh Agent
+
+- name: Обновляем базу данных LMD
+  command: /usr/local/maldetect/maldet --update
+  when: not update_database is defined or update_database
+
+- name: Запускаем LMD для сканирования
+  command: /usr/local/maldetect/maldet --scan-all
+
+- name: Добавляем задачу cron для ежедневного сканирования LMD
+  cron:
+    name: "LMD Daily Scan"
+    minute: "0"
+    hour: "4"
+    job: "/usr/local/sbin/maldet --scan-all > /var/log/maldetect/daily_scan.log 2>&1"

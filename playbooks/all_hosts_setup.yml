@@ -1,0 +1,14 @@
+---
+- name: Настраиваем все хосты
+  hosts: all
+  become: yes
+  vars_files:
+    - /etc/ansible/secret.yml
+  roles:
+#    - manage_users
+#    - disable_ipv6
+#    - ntp_setup
+    - zabbix-agent_setup
+#    - auditd_setup
+#    - filebeat_setup
+#    - update_upgrade
